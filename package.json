@@ -5,7 +5,7 @@
   "repository": "https://github.com/Adthena/react-assessment",
   "main": "index.html",
   "scripts": {
-    "start": "NODE_ENV=development webpack-dev-server --mode development",
+    "start": "NODE_ENV=development & webpack-dev-server --mode development",
     "test": "NODE_ENV=test jest --no-cache",
     "test:watch": "NODE_ENV=test jest --watch"
   },

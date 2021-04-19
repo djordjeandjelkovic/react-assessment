@@ -1,5 +1,6 @@
-import React, { Component } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import styled from 'styled-components';
+import PropTypes from 'prop-types';
 
 const Row = styled.div`
   display: flex;
@@ -26,11 +27,14 @@ const Users = styled.div`
   margin-top: 15px;
 `;
 
-const debounce = (func, wait = 5000) => {
-  let timeout = null;
+let timeout = null;
 
+const debounce = (func, wait = 5000) => {
   const cleanup = () => {
-    if (timeout) clearTimeout(timeout);
+    if (timeout) {
+      console.log('clear');
+      clearTimeout(timeout);
+    }
   };
 
   return () => {
@@ -40,75 +44,100 @@ const debounce = (func, wait = 5000) => {
   };
 };
 
-export default class UserList extends Component {
-  constructor(props) {
-    super(props);
+const Filter = (props) => {
+  const { value, handleFilter } = props;
 
-    this.state = {
-      data: [],
-      filter: '',
-      value: ''
-    };
-  }
+  return (
+    <div>
+      Filter:
+      <input
+        type="text"
+        onChange={handleFilter}
+        value={value}
+        placeholder="Enter username"
+      />
+    </div>
+  );
+};
 
-  fetchData = () => {
-    const { filter } = this.state;
-    fetch(`https://jsonplaceholder.typicode.com/users${filter ? `?username=${encodeURIComponent(filter)}` : ''}`).then(async (response) => {
-      const data = await response.json();
-      this.setState({ data });
+Filter.propTypes = {
+  value: PropTypes.string.isRequired,
+  handleFilter: PropTypes.func.isRequired,
+};
+
+const UserList = () => {
+  const [data, setData] = useState(null);
+  const [filter, setFilter] = useState('');
+  const [value, setValue] = useState('');
+
+  const fetchData = useCallback(async () => {
+    try {
+      const response = await fetch(`https://jsonplaceholder.typicode.com/users${filter ? `?username=${encodeURIComponent(filter)}` : ''}`);
+      const dataFromResponse = await response.json();
+      setData(dataFromResponse);
+    } catch (error) {
+      console.error(error);
+    }
+  }, [filter]);
+
+  const handleFilter = (e) => {
+    const filteredValue = e.target.value;
+    setValue(filteredValue);
+
+    const debounceFn = debounce(() => {
+      setFilter(filteredValue);
+      fetchData();
     });
-  }
 
-  componentDidMount() {
-    this.fetchData();
-  }
+    debounceFn();
+  };
 
-  render() {
-    const { data, value } = this.state;
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-    const setFilter = (e) => {
-      this.setState({ value: e.target.value });
-      const debounceFn = debounce((e) => {
-        this.setState({ filter: e.target.value }, this.fetchData);
-      });
-
-      debounceFn(e);
-    };
-
+  if (data === null) {
     return (
-      <div>
-        <div>
-          Filter:
-          <input
-            type="text"
-            onChange={setFilter}
-            value={value}
-            placeholder="Enter username"
-          />
-        </div>
-        <Users>
-          {data.map((user) => (
-            <Row key={user.id}>
-              <UserInfo>
-                <span>{`Name: ${user.name}`}</span>
-                <span>{`Username: ${user.username}`}</span>
-              </UserInfo>
-              <div>
-                <div>
-                  <span>{user.address.street}</span>
-                  <span>{user.address.suite}</span>
-                  <span>{user.address.city}</span>
-                  <span>{user.address.zipcode}</span>
-                </div>
-                <div>
-                  <span>{user.email}</span>
-                  <span>{user.phone}</span>
-                </div>
-              </div>
-            </Row>
-          ))}
-        </Users>
-      </div>
+      <h3>Loading...</h3>
     );
   }
-}
+
+  if (data.length === 0) {
+    return (
+      <>
+        <Filter value={value} handleFilter={handleFilter} />
+        <h3>We can&apos;t find username that match your search criteria.</h3>
+      </>
+    );
+  }
+
+  return (
+    <div>
+      <Filter value={value} handleFilter={handleFilter} />
+      <Users>
+        {data.map((user) => (
+          <Row key={user.id}>
+            <UserInfo>
+              <span>{`Name: ${user.name}`}</span>
+              <span>{`Username: ${user.username}`}</span>
+            </UserInfo>
+            <div>
+              <div>
+                <span>{user.address.street}</span>
+                <span>{user.address.suite}</span>
+                <span>{user.address.city}</span>
+                <span>{user.address.zipcode}</span>
+              </div>
+              <div>
+                <span>{user.email}</span>
+                <span>{user.phone}</span>
+              </div>
+            </div>
+          </Row>
+        ))}
+      </Users>
+    </div>
+  );
+};
+
+export default UserList;
